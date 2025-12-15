@@ -2,12 +2,20 @@
 import discord
 from discord.ext import commands, tasks
 import os
-import syslog
+import logging
 import json
 import random
 from datetime import datetime, timezone, timedelta
 import pytz
 from time import sleep
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 utc=pytz.UTC
 
@@ -22,13 +30,13 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 # Folder to store message logs
 
 if 'DISCORD_BOT_TOKEN' not in os.environ:
-    syslog.syslog(syslog.LOG_ERR, "Error: DISCORD_BOT_TOKEN is not set")
+    logger.error("Error: DISCORD_BOT_TOKEN is not set")
     exit(1)
 else:
     bot_token = os.environ.get('DISCORD_BOT_TOKEN')
 
 if 'WORKING_DIR' not in os.environ:
-    syslog.syslog(syslog.LOG_ERR, "Error: WORKING_DIR is not set")
+    logger.error("Error: WORKING_DIR is not set")
     exit(1)
 else:
     working_dir = os.environ.get('WORKING_DIR')
@@ -86,7 +94,7 @@ async def fetch_new_messages(channel):
         json.dump(sorted_new_messages, f, ensure_ascii=False, indent=4)
 
     if new_messages:
-        syslog.syslog(syslog.LOG_INFO, f"Fetched {len(new_messages)} new messages from {channel.name}")
+        logger.info(f"Fetched {len(new_messages)} new messages from {channel.name}")
 
 
 # Fetch and save messages from all channels
@@ -239,7 +247,7 @@ async def kick_inactive(ctx, n: int):
                         await member.kick(reason=f"Inactive in {guild.name} for {n} days")
                         await ctx.send(f"**Kicked {member.name} for inactivity**")
                     except:
-                        syslog.syslog(syslog.LOG_ERR, 'Error kicking {member.name}')
+                        logger.error(f'Error kicking {member.name}')
                 else:
                     inactive_whitelisted_members.append(member.name)
 
@@ -271,10 +279,10 @@ async def change_song():
 
 @bot.event
 async def on_ready():
-    syslog.syslog(syslog.LOG_INFO, f'Logged in as {bot.user.name}')
+    logger.info(f'Logged in as {bot.user.name}')
     for guild in bot.guilds:
         await fetch_messages(guild)
-    syslog.syslog(syslog.LOG_INFO, f"Ready for your commands!")
+    logger.info(f"Ready for your commands!")
     change_song.start()
 
 # Run the bot

@@ -30,6 +30,7 @@
             packages = [
               pkgs.python3Packages.discordpy
               pkgs.python3Packages.pytz
+              pkgs.python3Packages.python-dotenv
               self.packages.${system}.default
             ];
           };

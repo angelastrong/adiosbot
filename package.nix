@@ -7,6 +7,7 @@ pkgs.stdenv.mkDerivation {
   propagatedBuildInputs = [
     pkgs.python3Packages.discordpy
     pkgs.python3Packages.pytz
+    pkgs.python3Packages.python-dotenv
   ];
   dontUnpack = true;
   installPhase = ''

@@ -270,7 +270,7 @@ def member_has_whitelisted_role(member, role_whitelist):
 
 # Check for inactive members
 @bot.command(name='inactive')
-async def check_inactive(ctx, n: int):
+async def check_inactive(ctx, n: int, output_type: str = "name"):
     await ctx.send(f"Checking for members who haven't sent a message in the last {n} days...")
     guild = ctx.guild
 
@@ -282,20 +282,23 @@ async def check_inactive(ctx, n: int):
     whitelist = get_whitelist()
     role_whitelist = get_role_whitelist()
 
+    use_id = output_type.lower() == "id"
+
     for member in guild.members:
         if not member.bot:
             last_message_time = user_last_message.get(member.id)
             if last_message_time is None or last_message_time < utc.localize(cutoff_date):
                 # Check if member is whitelisted by name or role
                 if member.name not in whitelist and not member_has_whitelisted_role(member, role_whitelist):
-                    inactive_members.append(member.name)
+                    inactive_members.append(str(member.id) if use_id else member.name)
                 else:
-                    inactive_whitelisted_members.append(member.name)
+                    inactive_whitelisted_members.append(str(member.id) if use_id else member.name)
 
     inactive_members.sort()
 
+    member_type = "member IDs" if use_id else "members"
     if inactive_members:
-        await send_long_list(ctx, f"{len(inactive_members)} inactive members in the last {n} days:", inactive_members)
+        await send_long_list(ctx, f"{len(inactive_members)} inactive {member_type} in the last {n} days:", inactive_members)
     else:
         await ctx.send(f"No inactive members found in the last {n} days.")
 

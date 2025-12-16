@@ -36,6 +36,7 @@ python3 main.py
 ## Commands
 
 -  `!inactive n` – Show users who haven't posted any messages in the past n days
+-  `!inactive n id` - Show users by ID who haven't posted any messages in the past n days
 -  `!kick_inactive n` – Kick users who haven't posted any messages in the past n days
 -  `!whitelist add name` – Add user `name` to the whitelist (will not get kicked even if inactive)
 -  `!whitelist remove name` – Remove user `name` from the whitelist

@@ -198,7 +198,7 @@ async def role_whitelist(ctx):
 
 @role_whitelist.command()
 @commands.has_permissions(administrator=True)
-async def add(ctx, role_name):
+async def add(ctx, *, role_name):
     guild = ctx.guild
     existing_roles = get_role_whitelist()
     role = discord.utils.get(guild.roles, name=role_name)
@@ -216,7 +216,7 @@ async def add(ctx, role_name):
 
 @role_whitelist.command()
 @commands.has_permissions(administrator=True)
-async def remove(ctx, role_name):
+async def remove(ctx, *, role_name):
     guild = ctx.guild
     existing_roles = get_role_whitelist()
     if role_name not in existing_roles:

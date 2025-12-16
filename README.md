@@ -19,16 +19,25 @@ For example, if you want to kick members that haven't sent any messages in 30 da
 When in doubt, examine the respective channel logs (located in WORKING_DIR/message_logs) and check the earliest recorded timestamp.
 
 ## Usage
+
+Add values to .env
+
 ```
-source .envrc
-export DISCORD_BOT_TOKEN="token"
-export WORKING_DIR=$(pwd)
+DISCORD_BOT_TOKEN=your_discord_bot_token_here
+WORKING_DIR=/path/to/working/directory
+```
+
+To run:
+
+```
 python3 main.py
 ```
 
 ## Commands
-* `!inactive n` – Show users who haven't posted any messages in the past n days
-* `!kick_inactive n` – Kick users who haven't posted any messages in the past n days
-* `!whitelist add name` – Add user `name` to the whitelist (will not get kicked even if inactive)
-* `!whitelist remove name` – Remove user `name` from the whitelist
-* `!whitelist show` – Show the current whitelist
+
+-  `!inactive n` – Show users who haven't posted any messages in the past n days
+-  `!kick_inactive n` – Kick users who haven't posted any messages in the past n days
+-  `!whitelist add name` – Add user `name` to the whitelist (will not get kicked even if inactive)
+-  `!whitelist remove name` – Remove user `name` from the whitelist
+-  `!whitelist show` – Show the current whitelist
+-  `!role_whitelist add rolename` - Add role to the whitelist

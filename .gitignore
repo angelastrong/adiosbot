@@ -5,3 +5,4 @@ venv*
 whitelist.json
 .direnv
 .env
+role_whitelist.json

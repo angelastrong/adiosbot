@@ -48,7 +48,7 @@ MESSAGE_LOG_DIR = working_dir + "/message_logs"
 if not os.path.exists(MESSAGE_LOG_DIR):
     os.makedirs(MESSAGE_LOG_DIR)
 WHITELIST_PATH = working_dir + "/whitelist.json"
-
+ROLE_WHITELIST_PATH = working_dir + "/role_whitelist.json"
 
 # Load existing messages from disk
 def load_existing_messages(channel_id):
@@ -132,6 +132,13 @@ def get_whitelist():
     else:
         return []
 
+def get_role_whitelist():
+    if os.path.exists(ROLE_WHITELIST_PATH):
+        with open(ROLE_WHITELIST_PATH, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    else:
+        return []
+
 
 @bot.hybrid_group(fallback="show")
 @commands.has_permissions(administrator=True)
@@ -178,6 +185,49 @@ async def remove(ctx, name):
     await ctx.send(f"**User {name} was removed from the whitelist**\nThe whitelist currently contains the following users:\n" + "\n".join(existing_members))
 
 
+@bot.hybrid_group(fallback="show", name="role_whitelist")
+@commands.has_permissions(administrator=True)
+async def role_whitelist(ctx):
+    role_whitelist = get_role_whitelist()
+    if len(role_whitelist) > 0:
+        roles_text = "\n".join(role_whitelist)
+        await ctx.send(f"**Whitelisted roles (members with these roles will not be kicked):** \n" + roles_text)
+    else:
+        await ctx.send(f"**No roles currently on the whitelist**")
+
+
+@role_whitelist.command()
+@commands.has_permissions(administrator=True)
+async def add(ctx, role_name):
+    guild = ctx.guild
+    existing_roles = get_role_whitelist()
+    role = discord.utils.get(guild.roles, name=role_name)
+    if not role:
+        await ctx.send(f"**Role {role_name} does not exist in this server**")
+        return
+    if role_name in existing_roles:
+        await ctx.send(f"**Role {role_name} is already on the whitelist**")
+        return
+    new_roles = existing_roles + [role_name]
+    with open(ROLE_WHITELIST_PATH, 'w', encoding='utf-8') as f:
+        json.dump(new_roles, f, ensure_ascii=False, indent=4)
+    await ctx.send(f"**Role {role_name} was added to the whitelist**\nThe role whitelist currently contains:\n" + "\n".join(new_roles))
+
+
+@role_whitelist.command()
+@commands.has_permissions(administrator=True)
+async def remove(ctx, role_name):
+    guild = ctx.guild
+    existing_roles = get_role_whitelist()
+    if role_name not in existing_roles:
+        await ctx.send(f"**Role {role_name} is not currently on the whitelist**")
+        return
+    existing_roles.remove(role_name)
+    with open(ROLE_WHITELIST_PATH, 'w', encoding='utf-8') as f:
+        json.dump(existing_roles, f, ensure_ascii=False, indent=4)
+    await ctx.send(f"**Role {role_name} was removed from the whitelist**\nThe role whitelist currently contains:\n" + "\n".join(existing_roles))
+
+
 @bot.command(name='ban')
 async def ban_user(ctx, username: str):
     member = ctx.message.author
@@ -191,6 +241,33 @@ async def ban_user(ctx, username: str):
     else:
         await member.timeout(timedelta(minutes=1), reason="Why did you think that would work? You fool. You buffoon.")
 
+# Helper function to split long messages
+async def send_long_list(ctx, title, members_list, max_length=1900):
+    if not members_list:
+        return
+
+    message = f"**{title}**\n"
+    current_chunk = []
+
+    for member in members_list:
+        test_message = message + "\n".join(current_chunk + [member])
+        if len(test_message) > max_length:
+            # Send current chunk
+            await ctx.send(message + "\n".join(current_chunk))
+            current_chunk = [member]
+            message = ""
+        else:
+            current_chunk.append(member)
+
+    # Send remaining chunk
+    if current_chunk:
+        await ctx.send(message + "\n".join(current_chunk))
+
+# Check if member has any whitelisted roles
+def member_has_whitelisted_role(member, role_whitelist):
+    member_role_names = [role.name for role in member.roles]
+    return any(role_name in member_role_names for role_name in role_whitelist)
+
 # Check for inactive members
 @bot.command(name='inactive')
 async def check_inactive(ctx, n: int):
@@ -203,24 +280,27 @@ async def check_inactive(ctx, n: int):
     cutoff_date = datetime.now() - timedelta(days=n)
 
     whitelist = get_whitelist()
+    role_whitelist = get_role_whitelist()
 
     for member in guild.members:
         if not member.bot:
             last_message_time = user_last_message.get(member.id)
             if last_message_time is None or last_message_time < utc.localize(cutoff_date):
-                if member.name not in whitelist:
+                # Check if member is whitelisted by name or role
+                if member.name not in whitelist and not member_has_whitelisted_role(member, role_whitelist):
                     inactive_members.append(member.name)
                 else:
                     inactive_whitelisted_members.append(member.name)
 
     inactive_members.sort()
-    inactive_whitelisted_members.sort()
+
     if inactive_members:
-        await ctx.send(f"**{str(len(inactive_members))} inactive members in the last {n} days:**\n" + "\n".join(inactive_members))
+        await send_long_list(ctx, f"{len(inactive_members)} inactive members in the last {n} days:", inactive_members)
     else:
         await ctx.send(f"No inactive members found in the last {n} days.")
+
     if inactive_whitelisted_members:
-        await ctx.send(f"**{str(len(inactive_whitelisted_members))} whitelisted inactive members:**\n" + "\n".join(inactive_whitelisted_members))
+        await ctx.send(f"**{len(inactive_whitelisted_members)} whitelisted inactive members (not shown)**")
 
 # Check for inactive members
 @bot.command(name='kick_inactive')
@@ -235,12 +315,14 @@ async def kick_inactive(ctx, n: int):
     cutoff_date = datetime.now() - timedelta(days=n)
 
     whitelist = get_whitelist()
+    role_whitelist = get_role_whitelist()
 
     for member in guild.members:
         if not member.bot:
             last_message_time = user_last_message.get(member.id)
             if last_message_time is None or last_message_time < utc.localize(cutoff_date):
-                if member.name not in whitelist:
+                # Check if member is whitelisted by name or role
+                if member.name not in whitelist and not member_has_whitelisted_role(member, role_whitelist):
                     inactive_members.append(member.name)
                     remove_member_messages(member, guild)
                     try:
@@ -252,13 +334,14 @@ async def kick_inactive(ctx, n: int):
                     inactive_whitelisted_members.append(member.name)
 
     inactive_members.sort()
-    inactive_whitelisted_members.sort()
+
     if inactive_members:
-        await ctx.send(f"**Kicked {str(len(inactive_members))} members which were inactive in the last {n} days**\n" + "\n".join(inactive_members))
+        await send_long_list(ctx, f"Kicked {len(inactive_members)} members which were inactive in the last {n} days:", inactive_members)
     else:
         await ctx.send(f"No inactive members found in the last {n} days.")
+
     if inactive_whitelisted_members:
-        await ctx.send(f"**Did not kick {str(len(inactive_whitelisted_members))} whitelisted inactive members:**\n" + "\n".join(inactive_whitelisted_members))
+        await ctx.send(f"**Did not kick {len(inactive_whitelisted_members)} whitelisted inactive members**")
 
 
 @bot.event
